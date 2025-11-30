@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Морской бой - Мультиплеер</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Морской бой">
+    <meta name="theme-color" content="#1e3c72">
+    <meta name="description" content="Морской бой для iPhone с мультиплеером по локальной сети">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 28px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .screen {
+            display: none;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        .game-info {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .boards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .board-section {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .board-title {
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            gap: 2px;
+            width: 100%;
+            aspect-ratio: 1;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 5px;
+            border-radius: 5px;
+        }
+        
+        .cell {
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .cell:active {
+            transform: scale(0.95);
+        }
+        
+        .cell.ship {
+            background: #4a90e2;
+        }
+        
+        .cell.hit {
+            background: #e74c3c;
+            animation: hitAnimation 0.3s ease-in-out;
+        }
+        
+        .cell.miss {
+            background: #7f8c8d;
+        }
+        
+        .cell.hit::after {
+            content: "💥";
+            font-size: 14px;
+        }
+        
+        .cell.miss::after {
+            content: "•";
+            color: white;
+            font-size: 16px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: #3498db;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 8px 0;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+            background: #2980b9;
+        }
+        
+        button:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+        }
+        
+        .connection-status {
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .connected {
+            background: rgba(46, 204, 113, 0.3);
+            border: 2px solid #2ecc71;
+        }
+        
+        .disconnected {
+            background: rgba(231, 76, 60, 0.3);
+            border: 2px solid #e74c3c;
+        }
+        
+        .player-list {
+            margin: 20px 0;
+        }
+        
+        .player-item {
+            background: rgba(255,255,255,0.15);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .player-item:active {
+            background: rgba(255,255,255,0.25);
+            border-color: #3498db;
+        }
+        
+        .ship-counter {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .status-message {
+            text-align: center;
+            margin: 15px 0;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 27px;
+        }
+        
+        @keyframes hitAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .cell {
+                font-size: 10px;
+            }
+            
+            button {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Экран подключения -->
+        <div id="connectScreen" class="screen active">
+            <h1>🚢 Морской бой</h1>
+            <div class="game-info">
+                <h3>Выберите режим игры</h3>
+                <input type="text" id="playerName" placeholder="Введите ваше имя" value="Игрок">
+                
+                <button id="localGameBtn">🎮 Играть на одном устройстве</button>
+                <button id="singleGameBtn">🤖 Одиночная игра vs AI</button>
+                
+                <div class="instructions" style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 15px 0; font-size: 14px;">
+                    <strong>Как играть:</strong><br>
+                    • Расставьте корабли на поле<br>
+                    • По очереди стреляйте по полю противника<br>
+                    • Побеждает тот, кто первым потопит все корабли!
+                </div>
+            </div>
+        </div>
+
+        <!-- Экран локальной игры -->
+        <div id="localGameScreen" class="screen">
+            <h1>📱 Локальная игра</h1>
+            <div class="game-info">
+                <div id="localGameStatus">Игрок 1 расставляет корабли</div>
+                <div class="ship-counter">
+                    <span id="localPlayerInfo">Корабли: 1x4, 2x3, 3x2, 4x1</span>
+                </div>
+            </div>
+            
+            <div class="boards-container">
+                <div class="board-section">
+                    <div class="board-title" id="localBoardTitle">Поле Игрока 1</div>
+                    <div class="board" id="localPlayerBoard"></div>
+                </div>
+            </div>
+            
+            <button id="localAutoPlaceBtn">🎲 Авторасстановка</button>
+            <button id="localReadyBtn">✅ Готово</button>
+            <button id="localBackBtn">← Назад</button>
+        </div>
+
+        <!-- Экран игры -->
+        <div id="gameScreen" class="screen">
+            <h1>🎯 Морской бой</h1>
+            <div class="game-info">
+                <div id="gameStatus">Ожидание хода...</div>
+                <div class="ship-counter">
+                    <span>Ваши корабли: <span id="playerShipsCount">10</span></span>
+                    <span>Корабли противника: <span id="enemyShipsCount">10</span></span>
+                </div>
+            </div>
+            
+            <div class="boards-container">
+                <div class="board-section">
+                    <div class="board-title">Ваше поле</div>
+                    <div class="board" id="gamePlayerBoard"></div>
+                </div>
+                
+                <div class="board-section">
+                    <div class="board-title">Поле противника</div>
+                    <div class="board" id="enemyBoard"></div>
+                </div>
+            </div>
+            
+            <button id="leaveGameBtn">🏠 В меню</button>
+        </div>
+    </div>
+
+    <script>
+        class BattleshipGame {
+            constructor() {
+                this.playerName = 'Игрок';
+                this.localGame = {
+                    player1Board: null,
+                    player2Board: null,
+                    currentPlayer: 1,
+                    phase: 'placement1'
+                };
+                
+                this.shipSizes = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1];
+                
+                this.initializeEventListeners();
+                this.loadPlayerName();
+            }
+            
+            initializeEventListeners() {
+                document.getElementById('localGameBtn').addEventListener('click', () => this.startLocalGame());
+                document.getElementById('singleGameBtn').addEventListener('click', () => this.startSingleGame());
+                document.getElementById('localAutoPlaceBtn').addEventListener('click', () => this.localAutoPlace());
+                document.getElementById('localReadyBtn').addEventListener('click', () => this.localReady());
+                document.getElementById('localBackBtn').addEventListener('click', () => this.localBack());
+                document.getElementById('leaveGameBtn').addEventListener('click', () => this.leaveGame());
+                
+                document.getElementById('playerName').addEventListener('input', (e) => {
+                    this.playerName = e.target.value;
+                    localStorage.setItem('playerName', this.playerName);
+                });
+            }
+            
+            loadPlayerName() {
+                const savedName = localStorage.getItem('playerName');
+                if (savedName) {
+                    this.playerName = savedName;
+                    document.getElementById('playerName').value = savedName;
+                }
+            }
+            
+            showScreen(screenId) {
+                document.querySelectorAll('.screen').forEach(screen => {
+                    screen.classList.remove('active');
+                });
+                document.getElementById(screenId).classList.add('active');
+            }
+            
+            startLocalGame() {
+                this.playerName = document.getElementById('playerName').value || 'Игрок';
+                this.showScreen('localGameScreen');
+                this.localGame.phase = 'placement1';
+                this.localGame.player1Board = this.createEmptyBoard();
+                this.localGame.player2Board = this.createEmptyBoard();
+                this.initializeLocalGame();
+            }
+            
+            startSingleGame() {
+                this.playerName = document.getElementById('playerName').value || 'Игрок';
+                this.showScreen('localGameScreen');
+                this.localGame.phase = 'placement1';
+                this.localGame.player1Board = this.createEmptyBoard();
+                this.localGame.player2Board = this.generateRandomBoard(); // AI уже готов
+                this.initializeLocalGame();
+            }
+            
+            initializeLocalGame() {
+                const board = this.localGame.phase === 'placement1' ? 
+                    this.localGame.player1Board : this.localGame.player2Board;
+                
+                this.renderBoard('localPlayerBoard', board, false);
+                
+                const playerNum = this.localGame.phase === 'placement1' ? 1 : 2;
+                document.getElementById('localBoardTitle').textContent = `Поле Игрока ${playerNum}`;
+                document.getElementById('localGameStatus').textContent = `Игрок ${playerNum} расставляет корабли`;
+                
+                document.getElementById('localReadyBtn').disabled = false;
+            }
+            
+            localAutoPlace() {
+                const board = this.localGame.phase === 'placement1' ? 
+                    this.localGame.player1Board : this.localGame.player2Board;
+                
+                const newBoard = this.generateRandomBoard();
+                if (this.localGame.phase === 'placement1') {
+                    this.localGame.player1Board = newBoard;
+                } else {
+                    this.localGame.player2Board = newBoard;
+                }
+                
+                this.renderBoard('localPlayerBoard', newBoard, false);
+            }
+            
+            localReady() {
+                if (this.localGame.phase === 'placement1') {
+                    this.localGame.phase = 'placement2';
+                    this.initializeLocalGame();
+                } else {
+                    this.localGame.phase = 'battle';
+                    this.startLocalBattle();
+                }
+            }
+            
+            startLocalBattle() {
+                this.showScreen('gameScreen');
+                this.localGame.currentPlayer = 1;
+                
+                this.renderBoard('gamePlayerBoard', this.localGame.player1Board, false);
+                this.renderBoard('enemyBoard', this.maskEnemyBoard(this.localGame.player2Board), true);
+                
+                document.getElementById('gameStatus').textContent = 'Ход Игрока 1';
+                this.updateLocalShipCounts();
+            }
+            
+            handleLocalMove(row, col) {
+                if (this.localGame.phase !== 'battle') return;
+                
+                const targetBoard = this.localGame.currentPlayer === 1 ? 
+                    this.localGame.player2Board : this.localGame.player1Board;
+                
+                if (targetBoard[row][col] >= 2) return;
+                
+                const hit = targetBoard[row][col] === 1;
+                targetBoard[row][col] = hit ? 2 : 3;
+                
+                if (this.localGame.currentPlayer === 1) {
+                    this.renderBoard('enemyBoard', this.maskEnemyBoard(this.localGame.player2Board), true);
+                } else {
+                    this.renderBoard('gamePlayerBoard', this.localGame.player1Board, false);
+                }
+                
+                if (hit) {
+                    document.getElementById('gameStatus').textContent = `Игрок ${this.localGame.currentPlayer} попал!`;
+                    
+                    if (this.checkWin(targetBoard)) {
+                        document.getElementById('gameStatus').textContent = 
+                            `🎉 Игрок ${this.localGame.currentPlayer} победил!`;
+                        return;
+                    }
+                } else {
+                    document.getElementById('gameStatus').textContent = `Игрок ${this.localGame.currentPlayer} промахнулся`;
+                    this.localGame.currentPlayer = this.localGame.currentPlayer === 1 ? 2 : 1;
+                    setTimeout(() => {
+                        document.getElementById('gameStatus').textContent = 
+                            `Ход Игрока ${this.localGame.currentPlayer}`;
+                    }, 1500);
+                }
+                
+                this.updateLocalShipCounts();
+            }
+            
+            updateLocalShipCounts() {
+                const player1Ships = this.countRemainingShips(this.localGame.player1Board);
+                const player2Ships = this.countRemainingShips(this.localGame.player2Board);
+                
+                document.getElementById('playerShipsCount').textContent = player1Ships;
+                document.getElementById('enemyShipsCount').textContent = player2Ships;
+            }
+            
+            localBack() {
+                if (this.localGame.phase === 'placement1') {
+                    this.showScreen('connectScreen');
+                } else if (this.localGame.phase === 'placement2') {
+                    this.localGame.phase = 'placement1';
+                    this.initializeLocalGame();
+                } else {
+                    this.showScreen('connectScreen');
+                }
+            }
+            
+            leaveGame() {
+                this.showScreen('connectScreen');
+            }
+            
+            createEmptyBoard() {
+                return Array(10).fill().map(() => Array(10).fill(0));
+            }
+            
+            generateRandomBoard() {
+                const board = this.createEmptyBoard();
+                
+                for (const size of this.shipSizes) {
+                    let placed = false;
+                    let attempts = 0;
+                    
+                    while (!placed && attempts < 100) {
+                        const horizontal = Math.random() < 0.5;
+                        const row = Math.floor(Math.random() * 10);
+                        const col = Math.floor(Math.random() * 10);
+                        
+                        if (this.canPlaceShip(board, row, col, size, horizontal)) {
+                            this.placeShip(board, row, col, size, horizontal);
+                            placed = true;
+                        }
+                        attempts++;
+                    }
+                }
+                return board;
+            }
+            
+            canPlaceShip(board, row, col, size, horizontal) {
+                for (let i = 0; i < size; i++) {
+                    const r = horizontal ? row : row + i;
+                    const c = horizontal ? col + i : col;
+                    
+                    if (r >= 10 || c >= 10) return false;
+                    if (board[r][c] !== 0) return false;
+                    
+                    for (let dr = -1; dr <= 1; dr++) {
+                        for (let dc = -1; dc <= 1; dc++) {
+                            const nr = r + dr, nc = c + dc;
+                            if (nr >= 0 && nr < 10 && nc >= 0 && nc < 10 && board[nr][nc] !== 0) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            }
+            
+            placeShip(board, row, col, size, horizontal) {
+                for (let i = 0; i < size; i++) {
+                    const r = horizontal ? row : row + i;
+                    const c = horizontal ? col + i : col;
+                    board[r][c] = 1;
+                }
+            }
+            
+            renderBoard(boardId, boardData, isEnemy) {
+                const board = document.getElementById(boardId);
+                board.innerHTML = '';
+                
+                for (let i = 0; i < 10; i++) {
+                    for (let j = 0; j < 10; j++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = i;
+                        cell.dataset.col = j;
+                        
+                        if (!isEnemy && boardData[i][j] === 1) {
+                            cell.classList.add('ship');
+                        } else if (boardData[i][j] === 2) {
+                            cell.classList.add('hit');
+                        } else if (boardData[i][j] === 3) {
+                            cell.classList.add('miss');
+                        }
+                        
+                        if (isEnemy && boardData[i][j] === 0) {
+                            cell.addEventListener('click', () => this.handleLocalMove(i, j));
+                        } else if (boardId === 'localPlayerBoard' && this.localGame.phase.includes('placement')) {
+                            cell.addEventListener('click', () => this.handleLocalPlacementClick(i, j));
+                        }
+                        
+                        board.appendChild(cell);
+                    }
+                }
+            }
+            
+            handleLocalPlacementClick(row, col) {
+                const board = this.localGame.phase === 'placement1' ? 
+                    this.localGame.player1Board : this.localGame.player2Board;
+                
+                if (board[row][col] === 0) {
+                    board[row][col] = 1;
+                } else {
+                    board[row][col] = 0;
+                }
+                
+                this.renderBoard('localPlayerBoard', board, false);
+            }
+            
+            maskEnemyBoard(board) {
+                return board.map(row => row.map(cell => {
+                    return cell === 1 ? 0 : cell;
+                }));
+            }
+            
+            countRemainingShips(board) {
+                return board.flat().filter(cell => cell === 1).length;
+            }
+            
+            checkWin(board) {
+                return !board.some(row => row.includes(1));
+            }
+        }
+        
+        // Инициализация игры при загрузке
+        document.addEventListener('DOMContentLoaded', () => {
+            window.game = new BattleshipGame();
+        });
+    </script>
+</body>
+</html>
